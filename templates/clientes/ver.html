@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}M2 Sistema - {{ cliente.nome }}{% endblock %}
+
+{% block content %}
+<div class="content">
+  <div class="page-header">
+    <a href="{{ url_for('clientes.lista') }}" class="back-link">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Clientes
+    </a>
+    <h1 class="page-title">{{ cliente.id }} - {{ cliente.nome }}</h1>
+    <div class="page-actions">
+      <a href="{{ url_for('clientes.relatorio_ficha', id=cliente.id) }}" target="_blank" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Imprimir
+      </a>
+      <a href="{{ url_for('clientes.editar', id=cliente.id) }}" class="btn btn-save">
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar
+      </a>
+
+      <!-- Status -->
+      <div class="dropdown" style="position:relative">
+        <button type="button" class="btn btn-secondary" onclick="toggleDropdown(this)">
+          <span class="status-badge status-{{ cliente.status }}">{{ cliente.status_descricao() }}</span>
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="dropdown-menu">
+          {% for s, label in [('ativo','Ativar'),('inativo','Desativar'),('bloqueado','Bloquear')] %}
+          {% if s != cliente.status %}
+          <form method="POST" action="{{ url_for('clientes.alterar_status', id=cliente.id, novo_status=s) }}" style="display:contents">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="dropdown-item">{{ label }}</button>
+          </form>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Excluir -->
+      <form method="POST" action="{{ url_for('clientes.excluir', id=cliente.id) }}" style="display:inline" onsubmit="return confirm('ATENCAO: Isso vai EXCLUIR permanentemente o cliente {{ cliente.nome }}. Continuar?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-delete">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          Excluir
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if cliente.status != 'ativo' %}
+  <div class="flash-msg flash-{{ 'warning' if cliente.status == 'inativo' else 'danger' }}" style="margin-bottom:16px">
+    Este cliente esta <strong>{{ cliente.status_descricao()|lower }}</strong>.
+  </div>
+  {% endif %}
+
+  <div class="detail-grid">
+    <!-- Dados Basicos -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Dados Basicos</div>
+        <span class="tipo-badge tipo-{{ cliente.tipo|lower }}">{{ cliente.tipo_descricao() }}</span>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <span class="detail-label">Codigo</span>
+          <span class="detail-value">{{ cliente.id }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Nome / Razao Social</span>
+          <span class="detail-value">{{ cliente.nome }}</span>
+        </div>
+        {% if cliente.nome_fantasia %}
+        <div class="detail-item">
+          <span class="detail-label">Nome Fantasia</span>
+          <span class="detail-value">{{ cliente.nome_fantasia }}</span>
+        </div>
+        {% endif %}
+        <div class="detail-item">
+          <span class="detail-label">{{ 'CPF' if cliente.tipo == 'PF' else 'CNPJ' if cliente.tipo == 'PJ' else 'CPF/CNPJ' }}</span>
+          <span class="detail-value">{{ cliente.cpf_cnpj_formatado() or '-' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">{{ 'RG' if cliente.tipo == 'PF' else 'IE' }}</span>
+          <span class="detail-value">{{ cliente.rg_ie or '-' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Perfis</span>
+          <span class="detail-value">
+            {% for p in cliente.perfis_descricao() %}
+            <span class="perfil-tag">{{ p }}</span>
+            {% endfor %}
+          </span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Cadastro</span>
+          <span class="detail-value">{{ cliente.dt_cadastro.strftime('%d/%m/%Y %H:%M') if cliente.dt_cadastro else '-' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contato -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Contato</div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <span class="detail-label">Telefone</span>
+          <span class="detail-value">{{ cliente.telefone or '-' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Celular / WhatsApp</span>
+          <span class="detail-value">{{ cliente.celular_formatado() or '-' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">E-mail</span>
+          <span class="detail-value">{{ cliente.email or '-' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Endereco -->
+    <div class="panel" style="grid-column:1/-1">
+      <div class="panel-header">
+        <div class="panel-title">Endereco</div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <span class="detail-label">Endereco completo</span>
+          <span class="detail-value">{{ cliente.endereco_completo() or '-' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">CEP</span>
+          <span class="detail-value">{{ cliente.cep or '-' }}</span>
+        </div>
+      </div>
+    </div>
+
+    {% if cliente.observacoes %}
+    <div class="panel" style="grid-column:1/-1">
+      <div class="panel-header"><div class="panel-title">Observacoes</div></div>
+      <div style="padding:16px 20px;font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.6">{{ cliente.observacoes }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Financeiro (futuro) -->
+    <div class="panel" style="grid-column:1/-1">
+      <div class="panel-header"><div class="panel-title">Financeiro</div></div>
+      <div class="empty-state" style="padding:30px">
+        <p style="color:var(--text-light);font-size:13px">Modulo financeiro sera adicionado em breve.</p>
+      </div>
+    </div>
+
+    <!-- Historico OS (futuro) -->
+    <div class="panel" style="grid-column:1/-1">
+      <div class="panel-header"><div class="panel-title">Historico de OS</div></div>
+      <div class="empty-state" style="padding:30px">
+        <p style="color:var(--text-light);font-size:13px">Modulo de OS sera adicionado em breve.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleDropdown(btn) {
+    const menu = btn.nextElementSibling;
+    menu.classList.toggle('show');
+    setTimeout(() => {
+        document.addEventListener('click', function closeDD(e) {
+            if (!btn.parentElement.contains(e.target)) { menu.classList.remove('show'); document.removeEventListener('click', closeDD); }
+        });
+    }, 10);
+}
+</script>
+{% endblock %}

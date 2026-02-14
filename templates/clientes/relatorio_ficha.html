@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Ficha Cadastral - {{ cliente.nome }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; color: #1E293B; padding: 30px; }
+
+.header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #2563EB; padding-bottom: 16px; margin-bottom: 24px; }
+.header-logo { font-size: 22px; font-weight: 800; color: #0F1A2E; }
+.header-logo span { color: #2563EB; }
+.header-right { text-align: right; font-size: 12px; color: #64748B; }
+.header-title { font-size: 16px; font-weight: 700; color: #0F1A2E; }
+
+.section { margin-bottom: 20px; }
+.section-title { font-size: 13px; font-weight: 700; color: #2563EB; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 12px; }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+.field { margin-bottom: 8px; }
+.field-label { font-size: 10px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em; }
+.field-value { font-size: 13px; font-weight: 600; color: #1E293B; padding: 4px 0; border-bottom: 1px solid #F0F4F8; min-height: 22px; }
+.field-full { grid-column: 1 / -1; }
+.field-value.empty { color: #CBD5E1; font-style: italic; }
+
+.id-box { display: inline-block; background: #2563EB; color: #fff; font-size: 14px; font-weight: 700; padding: 4px 12px; border-radius: 6px; margin-right: 8px; }
+.tipo-box { display: inline-block; background: #EFF6FF; color: #2563EB; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+
+.footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; font-size: 11px; color: #94A3B8; }
+
+@media print {
+  body { padding: 15px; }
+  @page { margin: 15mm; }
+}
+</style>
+</head>
+<body onload="window.print()">
+
+<div class="header">
+  <div>
+    <div class="header-logo">M<span>2</span> Informatica</div>
+    <div class="header-title">Ficha Cadastral do Cliente</div>
+  </div>
+  <div class="header-right">
+    <div>CNPJ: {{ empresa_cnpj }}</div>
+    <div>Data: {{ cliente.dt_cadastro.strftime('%d/%m/%Y') if cliente.dt_cadastro else '-' }}</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Dados Basicos</div>
+  <div class="field-grid">
+    <div class="field">
+      <div class="field-label">Codigo / Tipo</div>
+      <div class="field-value"><span class="id-box">#{{ cliente.id }}</span> <span class="tipo-box">{{ cliente.tipo_descricao() }}</span></div>
+    </div>
+    <div class="field">
+      <div class="field-label">{{ 'CPF' if cliente.tipo == 'PF' else 'CNPJ' if cliente.tipo == 'PJ' else 'CPF/CNPJ' }}</div>
+      <div class="field-value">{{ cliente.cpf_cnpj_formatado() or '-' }}</div>
+    </div>
+    <div class="field field-full">
+      <div class="field-label">Nome / Razao Social</div>
+      <div class="field-value">{{ cliente.nome }}</div>
+    </div>
+    {% if cliente.nome_fantasia %}
+    <div class="field field-full">
+      <div class="field-label">Nome Fantasia</div>
+      <div class="field-value">{{ cliente.nome_fantasia }}</div>
+    </div>
+    {% endif %}
+    <div class="field">
+      <div class="field-label">{{ 'RG' if cliente.tipo == 'PF' else 'Inscricao Estadual' }}</div>
+      <div class="field-value">{{ cliente.rg_ie or '-' }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Contato</div>
+  <div class="field-grid">
+    <div class="field">
+      <div class="field-label">Telefone</div>
+      <div class="field-value">{{ cliente.telefone or '-' }}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Celular / WhatsApp</div>
+      <div class="field-value">{{ cliente.celular_formatado() or '-' }}</div>
+    </div>
+    <div class="field field-full">
+      <div class="field-label">E-mail</div>
+      <div class="field-value">{{ cliente.email or '-' }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Endereco</div>
+  <div class="field-grid">
+    <div class="field">
+      <div class="field-label">CEP</div>
+      <div class="field-value">{{ cliente.cep or '-' }}</div>
+    </div>
+    <div class="field field-full" style="grid-column:1/-1">
+      <div class="field-label">Endereco</div>
+      <div class="field-value">{{ cliente.endereco_completo() or '-' }}</div>
+    </div>
+  </div>
+</div>
+
+{% if cliente.observacoes %}
+<div class="section">
+  <div class="section-title">Observacoes</div>
+  <div class="field-value" style="white-space:pre-wrap;line-height:1.6;padding:8px 0">{{ cliente.observacoes }}</div>
+</div>
+{% endif %}
+
+<div class="footer">
+  <span>M2 Informatica - Sistema de Gestao</span>
+  <span>Impresso em {{ "hoje" }} | Cliente #{{ cliente.id }}</span>
+</div>
+
+<script>
+// Coloca data real no footer
+document.querySelector('.footer span:last-child').textContent =
+    'Impresso em ' + new Date().toLocaleDateString('pt-BR') + ' | Cliente #{{ cliente.id }}';
+</script>
+</body>
+</html>

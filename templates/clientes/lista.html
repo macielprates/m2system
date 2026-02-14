@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}M2 Sistema - Clientes{% endblock %}
+
+{% block content %}
+<div class="content">
+  <form id="formSelecionados" method="POST" action="{{ url_for('clientes.relatorio_selecionados') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Clientes</div>
+        <div class="panel-actions">
+          <div class="dropdown" style="position:relative">
+            <button type="button" class="btn btn-secondary" onclick="toggleDropdown(this)">
+              <svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Relatorios
+            </button>
+            <div class="dropdown-menu">
+              <a href="{{ url_for('clientes.relatorio_whatsapp') }}" target="_blank" class="dropdown-item">Lista com WhatsApp</a>
+              <button type="submit" class="dropdown-item" onclick="return validarSelecionados()">Imprimir Selecionados</button>
+            </div>
+          </div>
+          <a href="{{ url_for('clientes.novo') }}" class="btn btn-save">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Cliente
+          </a>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filter-bar">
+        <form method="GET" class="filter-form" id="formFiltro">
+          <div class="filter-search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome, CPF/CNPJ, telefone, email, cidade..." class="filter-input">
+          </div>
+          <select name="tipo" class="filter-select" onchange="document.getElementById('formFiltro').submit()">
+            <option value="">Todos</option>
+            <option value="PF" {% if tipo == 'PF' %}selected{% endif %}>PF</option>
+            <option value="PJ" {% if tipo == 'PJ' %}selected{% endif %}>PJ</option>
+            <option value="PR" {% if tipo == 'PR' %}selected{% endif %}>Produtor Rural</option>
+          </select>
+          <select name="status" class="filter-select" onchange="document.getElementById('formFiltro').submit()">
+            <option value="">Todos Status</option>
+            <option value="ativo" {% if status == 'ativo' %}selected{% endif %}>Ativos</option>
+            <option value="inativo" {% if status == 'inativo' %}selected{% endif %}>Inativos</option>
+            <option value="bloqueado" {% if status == 'bloqueado' %}selected{% endif %}>Bloqueados</option>
+          </select>
+          <select name="perfil" class="filter-select" onchange="document.getElementById('formFiltro').submit()">
+            <option value="">Todos Perfis</option>
+            <option value="cliente" {% if perfil == 'cliente' %}selected{% endif %}>Clientes</option>
+            <option value="tecnico" {% if perfil == 'tecnico' %}selected{% endif %}>Tecnicos</option>
+            <option value="fornecedor" {% if perfil == 'fornecedor' %}selected{% endif %}>Fornecedores</option>
+            <option value="vendedor" {% if perfil == 'vendedor' %}selected{% endif %}>Vendedores</option>
+          </select>
+          <button type="submit" class="btn btn-secondary">Buscar</button>
+        </form>
+      </div>
+
+      <!-- Tabela -->
+      {% if clientes %}
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px"><input type="checkbox" id="checkAll" onchange="toggleCheckAll()"></th>
+            <th style="width:60px">ID</th>
+            <th>Nome</th>
+            <th>CPF/CNPJ</th>
+            <th>Celular/WhatsApp</th>
+            <th>Cidade/UF</th>
+            <th style="width:90px">Status</th>
+            <th style="width:80px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in clientes %}
+          <tr>
+            <td onclick="event.stopPropagation()">
+              <input type="checkbox" name="cliente_ids" value="{{ c.id }}" class="check-cliente" form="formSelecionados">
+            </td>
+            <td style="font-weight:700;color:var(--blue)">{{ c.id }}</td>
+            <td onclick="window.location='{{ url_for('clientes.ver', id=c.id) }}'">
+              <div class="client-cell">
+                <div class="client-avatar" style="background:linear-gradient(135deg, var(--blue), var(--blue-hover))">{{ c.iniciais() }}</div>
+                <div>
+                  <div style="font-weight:600">{{ c.nome }}</div>
+                  {% if c.nome_fantasia %}<div style="font-size:11px;color:var(--text-light)">{{ c.nome_fantasia }}</div>{% endif %}
+                  {% if c.lista_perfis()|length > 1 or 'cliente' not in c.lista_perfis() %}
+                  <div style="margin-top:2px">
+                    {% for p in c.perfis_descricao() %}
+                    {% if p != 'Cliente' %}<span class="perfil-tag">{{ p }}</span>{% endif %}
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td onclick="window.location='{{ url_for('clientes.ver', id=c.id) }}'">
+              <span class="tipo-badge tipo-{{ c.tipo|lower }}">{{ c.tipo }}</span>
+              {{ c.cpf_cnpj_formatado() }}
+            </td>
+            <td onclick="window.location='{{ url_for('clientes.ver', id=c.id) }}'">{{ c.celular_formatado() or c.telefone or '-' }}</td>
+            <td onclick="window.location='{{ url_for('clientes.ver', id=c.id) }}'" style="color:var(--text-light)">
+              {% if c.cidade %}{{ c.cidade }}{% if c.uf %}/{{ c.uf }}{% endif %}{% else %}-{% endif %}
+            </td>
+            <td onclick="window.location='{{ url_for('clientes.ver', id=c.id) }}'">
+              <span class="status-badge status-{{ c.status }}">{{ c.status_descricao() }}</span>
+            </td>
+            <td onclick="event.stopPropagation()">
+              <div style="display:flex;gap:4px">
+                <a href="{{ url_for('clientes.relatorio_ficha', id=c.id) }}" target="_blank" class="action-btn" title="Ficha Cadastral">
+                  <svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                </a>
+                <a href="{{ url_for('clientes.editar', id=c.id) }}" class="action-btn" title="Editar">
+                  <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="table-footer">
+        <span id="countSelecionados"></span>
+        {{ clientes|length }} cliente{{ 's' if clientes|length != 1 }} encontrado{{ 's' if clientes|length != 1 }}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <p>Nenhum cliente encontrado</p>
+        {% if busca %}
+        <a href="{{ url_for('clientes.lista') }}" class="btn btn-secondary" style="margin-top:12px">Limpar filtros</a>
+        {% else %}
+        <a href="{{ url_for('clientes.novo') }}" class="btn btn-save" style="margin-top:12px">Cadastrar primeiro cliente</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleCheckAll() {
+    const checked = document.getElementById('checkAll').checked;
+    document.querySelectorAll('.check-cliente').forEach(c => c.checked = checked);
+    atualizarContador();
+}
+function atualizarContador() {
+    const total = document.querySelectorAll('.check-cliente:checked').length;
+    const el = document.getElementById('countSelecionados');
+    el.textContent = total > 0 ? total + ' selecionado' + (total > 1 ? 's' : '') + ' | ' : '';
+}
+document.querySelectorAll('.check-cliente').forEach(c => c.addEventListener('change', atualizarContador));
+
+function validarSelecionados() {
+    const total = document.querySelectorAll('.check-cliente:checked').length;
+    if (total === 0) { alert('Selecione pelo menos um cliente.'); return false; }
+    document.getElementById('formSelecionados').target = '_blank';
+    return true;
+}
+
+function toggleDropdown(btn) {
+    const menu = btn.nextElementSibling;
+    menu.classList.toggle('show');
+    setTimeout(() => {
+        document.addEventListener('click', function closeDD(e) {
+            if (!btn.parentElement.contains(e.target)) { menu.classList.remove('show'); document.removeEventListener('click', closeDD); }
+        });
+    }, 10);
+}
+</script>
+{% endblock %}

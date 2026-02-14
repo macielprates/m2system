@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}M2 Sistema - {% if cliente and cliente.id %}Editar{% else %}Novo{% endif %} Cliente{% endblock %}
+
+{% block content %}
+<div class="content">
+  <div class="page-header">
+    <a href="{{ url_for('clientes.lista') }}" class="back-link">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Clientes
+    </a>
+    <h1 class="page-title">{% if cliente and cliente.id %}Editar Cliente {{ cliente.id }}{% else %}Novo Cliente{% endif %}</h1>
+  </div>
+
+  <form method="POST" class="form-card" id="formCliente">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Tipo -->
+    <div class="form-section">
+      <div class="form-section-title">Tipo de Pessoa</div>
+      <div class="form-row" style="display:flex;gap:10px;">
+        <label class="radio-card">
+          <input type="radio" name="tipo" value="PF" {% if not cliente or cliente.tipo == 'PF' %}checked{% endif %} onchange="toggleTipo()">
+          <span class="radio-card-body">
+            <strong>Pessoa Fisica</strong>
+            <small>CPF</small>
+          </span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="tipo" value="PJ" {% if cliente and cliente.tipo == 'PJ' %}checked{% endif %} onchange="toggleTipo()">
+          <span class="radio-card-body">
+            <strong>Pessoa Juridica</strong>
+            <small>CNPJ</small>
+          </span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="tipo" value="PR" {% if cliente and cliente.tipo == 'PR' %}checked{% endif %} onchange="toggleTipo()">
+          <span class="radio-card-body">
+            <strong>Produtor Rural</strong>
+            <small>CPF/CNPJ</small>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Dados Basicos -->
+    <div class="form-section">
+      <div class="form-section-title">Dados Basicos</div>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label"><span id="label_doc">CPF</span> *</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" name="cpf_cnpj" id="campo_doc" class="form-input" value="{{ cliente.cpf_cnpj_formatado() if cliente and cliente.cpf_cnpj else '' }}" placeholder="000.000.000-00" required style="flex:1">
+            <button type="button" id="btn_buscar_cnpj" class="btn btn-secondary" onclick="buscarCNPJ()" style="display:none;white-space:nowrap" title="Buscar dados pelo CNPJ">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Buscar
+            </button>
+          </div>
+          <span id="cnpj_loading" style="display:none;font-size:11px;color:var(--blue);margin-top:4px;">Buscando dados do CNPJ...</span>
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label"><span id="label_rg">RG</span></label>
+          <input type="text" name="rg_ie" class="form-input" value="{{ cliente.rg_ie if cliente else '' }}">
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Nome / Razao Social *</label>
+          <input type="text" name="nome" id="nome" class="form-input" value="{{ cliente.nome if cliente else '' }}" required placeholder="Nome completo ou razao social" style="text-transform:uppercase">
+        </div>
+        <div class="form-group pj-field" style="grid-column:span 2;display:none">
+          <label class="form-label">Nome Fantasia</label>
+          <input type="text" name="nome_fantasia" id="nome_fantasia" class="form-input" value="{{ cliente.nome_fantasia if cliente else '' }}" placeholder="Nome fantasia" style="text-transform:uppercase">
+        </div>
+      </div>
+    </div>
+
+    <!-- Perfis -->
+    <div class="form-section">
+      <div class="form-section-title">Perfis</div>
+      <div class="perfil-grid">
+        {% set perfis_atuais = cliente.lista_perfis() if cliente and cliente.perfis else ['cliente'] %}
+        {% for p in [('cliente','Cliente'),('tecnico','Tecnico'),('fornecedor','Fornecedor'),('vendedor','Vendedor'),('transportador','Transportador')] %}
+        <label class="perfil-check">
+          <input type="checkbox" name="perfis" value="{{ p[0] }}" {% if p[0] in perfis_atuais %}checked{% endif %}>
+          <span class="perfil-check-body">{{ p[1] }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Contato -->
+    <div class="form-section">
+      <div class="form-section-title">Contato</div>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Telefone Fixo</label>
+          <input type="tel" name="telefone" id="telefone" class="form-input" value="{{ cliente.telefone if cliente else '' }}" placeholder="(65) 3333-3333">
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Celular / WhatsApp</label>
+          <input type="tel" name="celular" id="celular" class="form-input" value="{{ cliente.celular_formatado() if cliente and cliente.celular else '' }}" placeholder="65 99999-9999">
+        </div>
+        <div class="form-group" style="grid-column:span 4">
+          <label class="form-label">E-mail</label>
+          <input type="email" name="email" id="email" class="form-input" value="{{ cliente.email if cliente else '' }}" placeholder="email@exemplo.com" style="text-transform:lowercase">
+        </div>
+      </div>
+    </div>
+
+    <!-- Endereco -->
+    <div class="form-section">
+      <div class="form-section-title">Endereco</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">CEP</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" name="cep" id="cep" class="form-input" value="{{ cliente.cep if cliente else '' }}" placeholder="78250-000" maxlength="9" style="flex:1">
+          </div>
+          <span id="cep_loading" style="display:none;font-size:11px;color:var(--blue);margin-top:4px;">Buscando CEP...</span>
+          <span id="cep_erro" style="display:none;font-size:11px;color:var(--danger);margin-top:4px;">CEP nao encontrado</span>
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Logradouro</label>
+          <input type="text" name="logradouro" id="logradouro" class="form-input" value="{{ cliente.logradouro if cliente else '' }}" placeholder="Rua, Avenida..." style="text-transform:uppercase">
+        </div>
+        <div class="form-group" style="max-width:120px">
+          <label class="form-label">Numero</label>
+          <input type="text" name="numero" class="form-input" value="{{ cliente.numero if cliente else '' }}" placeholder="Nr">
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Complemento</label>
+          <input type="text" name="complemento" class="form-input" value="{{ cliente.complemento if cliente else '' }}" placeholder="Apto, Sala..." style="text-transform:uppercase">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bairro</label>
+          <input type="text" name="bairro" id="bairro" class="form-input" value="{{ cliente.bairro if cliente else '' }}" placeholder="Bairro" style="text-transform:uppercase">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cidade</label>
+          <input type="text" name="cidade" id="cidade" class="form-input" value="{{ cliente.cidade if cliente else '' }}" placeholder="Cidade" style="text-transform:uppercase">
+        </div>
+        <div class="form-group" style="max-width:80px">
+          <label class="form-label">UF</label>
+          <select name="uf" id="uf" class="form-input">
+            <option value="">-</option>
+            {% for sigla in ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'] %}
+            <option value="{{ sigla }}" {% if cliente and cliente.uf == sigla %}selected{% endif %}>{{ sigla }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Observacoes -->
+    <div class="form-section">
+      <div class="form-section-title">Observacoes</div>
+      <div class="form-group">
+        <textarea name="observacoes" class="form-input form-textarea" rows="4" placeholder="Observacoes gerais sobre o cliente...">{{ cliente.observacoes if cliente else '' }}</textarea>
+      </div>
+    </div>
+
+    <!-- Botoes -->
+    <div class="form-actions">
+      <a href="{{ url_for('clientes.lista') }}" class="btn btn-cancel">Cancelar</a>
+      <button type="submit" class="btn btn-save btn-lg">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        {% if cliente and cliente.id %}Salvar{% else %}Cadastrar{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleTipo() {
+    const tipo = document.querySelector('input[name="tipo"]:checked').value;
+    const isPJ = tipo === 'PJ';
+    const isPR = tipo === 'PR';
+
+    document.querySelectorAll('.pj-field').forEach(el => el.style.display = (isPJ || isPR) ? '' : 'none');
+
+    if (isPJ) {
+        document.getElementById('label_doc').textContent = 'CNPJ';
+        document.getElementById('label_rg').textContent = 'Inscricao Estadual';
+        document.getElementById('campo_doc').placeholder = '00.000.000/0000-00';
+        document.getElementById('btn_buscar_cnpj').style.display = '';
+    } else if (isPR) {
+        document.getElementById('label_doc').textContent = 'CPF ou CNPJ';
+        document.getElementById('label_rg').textContent = 'Inscricao Estadual';
+        document.getElementById('campo_doc').placeholder = 'CPF ou CNPJ';
+        document.getElementById('btn_buscar_cnpj').style.display = '';
+    } else {
+        document.getElementById('label_doc').textContent = 'CPF';
+        document.getElementById('label_rg').textContent = 'RG';
+        document.getElementById('campo_doc').placeholder = '000.000.000-00';
+        document.getElementById('btn_buscar_cnpj').style.display = 'none';
+    }
+}
+toggleTipo();
+
+// Mascara celular: XX XXXXX-XXXX
+document.getElementById('celular').addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length > 11) v = v.substring(0, 11);
+    if (v.length > 7) v = v.substring(0,2) + ' ' + v.substring(2,7) + '-' + v.substring(7);
+    else if (v.length > 2) v = v.substring(0,2) + ' ' + v.substring(2);
+    e.target.value = v;
+});
+
+// Mascara telefone fixo
+document.getElementById('telefone').addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length > 10) v = v.substring(0, 10);
+    if (v.length > 6) v = '(' + v.substring(0,2) + ') ' + v.substring(2,6) + '-' + v.substring(6);
+    else if (v.length > 2) v = '(' + v.substring(0,2) + ') ' + v.substring(2);
+    else if (v.length > 0) v = '(' + v;
+    e.target.value = v;
+});
+
+// Mascara CEP
+document.getElementById('cep').addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length > 8) v = v.substring(0, 8);
+    if (v.length > 5) v = v.substring(0,5) + '-' + v.substring(5);
+    e.target.value = v;
+    if (v.replace('-','').length === 8) buscarCEP();
+});
+
+// Mascara CPF/CNPJ
+document.getElementById('campo_doc').addEventListener('input', function(e) {
+    let v = e.target.value.replace(/\D/g, '');
+    const tipo = document.querySelector('input[name="tipo"]:checked').value;
+    if (tipo === 'PF') {
+        if (v.length > 11) v = v.substring(0, 11);
+        if (v.length > 9) v = v.substring(0,3)+'.'+v.substring(3,6)+'.'+v.substring(6,9)+'-'+v.substring(9);
+        else if (v.length > 6) v = v.substring(0,3)+'.'+v.substring(3,6)+'.'+v.substring(6);
+        else if (v.length > 3) v = v.substring(0,3)+'.'+v.substring(3);
+    } else {
+        if (v.length > 14) v = v.substring(0, 14);
+        if (v.length > 12) v = v.substring(0,2)+'.'+v.substring(2,5)+'.'+v.substring(5,8)+'/'+v.substring(8,12)+'-'+v.substring(12);
+        else if (v.length > 8) v = v.substring(0,2)+'.'+v.substring(2,5)+'.'+v.substring(5,8)+'/'+v.substring(8);
+        else if (v.length > 5) v = v.substring(0,2)+'.'+v.substring(2,5)+'.'+v.substring(5);
+        else if (v.length > 2) v = v.substring(0,2)+'.'+v.substring(2);
+    }
+    e.target.value = v;
+});
+
+// Buscar CEP via backend (evita CORS)
+function buscarCEP() {
+    const cepRaw = document.getElementById('cep').value.replace(/\D/g, '');
+    if (cepRaw.length !== 8) return;
+
+    document.getElementById('cep_loading').style.display = 'block';
+    document.getElementById('cep_erro').style.display = 'none';
+
+    fetch('/api/cep/' + cepRaw)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('cep_loading').style.display = 'none';
+            if (data.erro) {
+                document.getElementById('cep_erro').style.display = 'block';
+                return;
+            }
+            if (data.logradouro) document.getElementById('logradouro').value = data.logradouro.toUpperCase();
+            if (data.bairro) document.getElementById('bairro').value = data.bairro.toUpperCase();
+            if (data.cidade) document.getElementById('cidade').value = data.cidade.toUpperCase();
+            if (data.uf) document.getElementById('uf').value = data.uf;
+            document.querySelector('input[name="numero"]').focus();
+        })
+        .catch(err => {
+            document.getElementById('cep_loading').style.display = 'none';
+            document.getElementById('cep_erro').style.display = 'block';
+        });
+}
+
+// Buscar CNPJ via backend (evita CORS)
+function buscarCNPJ() {
+    const doc = document.getElementById('campo_doc').value.replace(/\D/g, '');
+    if (doc.length !== 14) {
+        alert('Digite o CNPJ completo (14 digitos) antes de buscar.');
+        return;
+    }
+
+    document.getElementById('cnpj_loading').style.display = 'block';
+
+    fetch('/api/cnpj/' + doc)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('cnpj_loading').style.display = 'none';
+            if (data.erro) {
+                alert(data.msg || 'CNPJ nao encontrado.');
+                return;
+            }
+            if (data.razao_social) document.getElementById('nome').value = data.razao_social.toUpperCase();
+            if (data.nome_fantasia) document.getElementById('nome_fantasia').value = data.nome_fantasia.toUpperCase();
+            if (data.telefone) document.getElementById('telefone').value = data.telefone.replace(/\D/g,'');
+            if (data.email) document.getElementById('email').value = data.email.toLowerCase();
+            if (data.cep) {
+                const c = data.cep.replace(/\D/g,'');
+                document.getElementById('cep').value = c.substring(0,5)+'-'+c.substring(5);
+            }
+            if (data.logradouro) document.getElementById('logradouro').value = data.logradouro.toUpperCase();
+            if (data.numero) document.querySelector('input[name="numero"]').value = data.numero;
+            if (data.complemento) document.querySelector('input[name="complemento"]').value = data.complemento.toUpperCase();
+            if (data.bairro) document.getElementById('bairro').value = data.bairro.toUpperCase();
+            if (data.cidade) document.getElementById('cidade').value = data.cidade.toUpperCase();
+            if (data.uf) document.getElementById('uf').value = data.uf;
+            alert('Dados do CNPJ preenchidos! Confira e complete o cadastro.');
+        })
+        .catch(err => {
+            document.getElementById('cnpj_loading').style.display = 'none';
+            alert('Erro ao buscar CNPJ. Tente novamente.');
+        });
+}
+</script>
+{% endblock %}
